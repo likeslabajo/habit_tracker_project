@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "625846602638",
+    "project_id": "streakly-app-a4022",
+    "storage_bucket": "streakly-app-a4022.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:625846602638:android:4107311ba816da17cbf2df",
+        "android_client_info": {
+          "package_name": "com.example.habit_tracker_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABjEYLvg6Qvjhbzts-wl15N4bc-XMUj1E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:625846602638:android:160814f6de497baacbf2df",
+        "android_client_info": {
+          "package_name": "streakly.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABjEYLvg6Qvjhbzts-wl15N4bc-XMUj1E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
