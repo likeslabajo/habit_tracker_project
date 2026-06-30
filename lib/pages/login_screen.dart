@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:habit_tracker_project/app_colors.dart';
+import 'package:habit_tracker_project/auth.dart';
 import 'register_screen.dart';
+import 'home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,11 +15,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  void _login() {
-    // The login logic goes here
-    print("login logic here");
-  }
+  final Auth _auth = Auth();
+  String _errorMessage = '';
 
   @override
   Widget build(BuildContext context) {
@@ -127,9 +127,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 28), // Slightly increased spacing before the button
+                const SizedBox(
+                  height: 28,
+                ), // Slightly increased spacing before the button
                 SizedBox(
-                  width: double.infinity, // Forces the button to stretch horizontally
+                  width: double
+                      .infinity, // Forces the button to stretch horizontally
                   child: ElevatedButton(
                     onPressed: _login,
                     style: ElevatedButton.styleFrom(
@@ -138,7 +141,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(30.0),
                       ),
                       padding: const EdgeInsets.symmetric(
-                        vertical: 16, // Better vertical symmetry with your input fields
+                        vertical:
+                            16, // Better vertical symmetry with your input fields
                       ),
                     ),
                     child: const Text(
@@ -151,6 +155,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                Text(_errorMessage, style: const TextStyle(color: Colors.red)),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -185,5 +191,33 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _login() async {
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const HomeScreen()));
+    } on FirebaseAuthException catch (e) {
+      String errorMessage;
+      if (e.code == 'user-not-found' || e.code == 'wrong-password') {
+        errorMessage = 'Incorrect email or password';
+      } else {
+        errorMessage = 'An error occurred. Please try again.';
+      }
+      setState(() {
+        _errorMessage = errorMessage;
+      });
+    } catch (e) {
+      print('Error: $e');
+      setState(() {
+        _errorMessage =
+            'An error occurred. Please check your network and try again.';
+      });
+    }
   }
 }

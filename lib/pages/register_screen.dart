@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:habit_tracker_project/app_colors.dart';
+import 'package:habit_tracker_project/auth.dart';
 import 'login_screen.dart';
+import 'home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -12,11 +15,8 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  void _register() async {
-    // dummy for now
-    print("registration logic here");
-  }
+  final Auth _auth = Auth();
+  String _errorMessage = '';
 
   @override
   Widget build(BuildContext context) {
@@ -127,11 +127,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(
-                  height: 28,
-                ),
+                const SizedBox(height: 28),
                 SizedBox(
-                  width: double.infinity, 
+                  width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _register,
                     style: ElevatedButton.styleFrom(
@@ -139,8 +137,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30.0),
                       ),
-                       padding: const EdgeInsets.symmetric(
-                        vertical: 16, // Better vertical symmetry with your input fields
+                      padding: const EdgeInsets.symmetric(
+                        vertical:
+                            16, // Better vertical symmetry with your input fields
                       ),
                     ),
                     child: const Text(
@@ -153,6 +152,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                Text(_errorMessage, style: const TextStyle(color: Colors.red)),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -187,5 +188,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _register() async {
+    try {
+      await _auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const HomeScreen()));
+    } on FirebaseAuthException catch (e) {
+      String message;
+      if (e.code == 'weak-password') {
+        message = 'The password provided is too weak.';
+      } else if (e.code == 'email-already-in-use') {
+        message = 'The account already exists for that email.';
+      } else {
+        message = 'An error occurred. Please try again.';
+      }
+      setState(() {
+        _errorMessage = message;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An error occurred. Please try again.';
+      });
+    }
   }
 }
