@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:habit_tracker_project/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'package:habit_tracker_project/auth.dart';
+import 'package:habit_tracker_project/firestore_service.dart';
 import 'login_screen.dart';
 import 'add_habit_screen.dart';
+import 'reports_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -15,19 +18,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Map<String, String> selectedHabitsMap = {};
-  Map<String, String> completedHabitsMap = {};
-  String name = '';
   final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  late final FirestoreService _service;
 
   @override
   void initState() {
     super.initState();
-    name = widget.username;
-  }
-
-  Future<void> _saveHabits() async {
-    // save habits to preferences in the future
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    _service = FirestoreService(uid);
   }
 
   Color _getColorFromHex(String hexColor) {
@@ -36,35 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
       hexColor = 'FF$hexColor';
     }
     return Color(int.parse('0x$hexColor'));
-  }
-
-  Color _getHabitColor(String habit, Map<String, String> habitsMap) {
-    String? colorHex = habitsMap[habit];
-    if (colorHex != null) {
-      try {
-        return _getColorFromHex(colorHex);
-      } catch (e) {
-        print('Error parsing color for $habit: $e');
-      }
-    }
-    return Colors.blue;
-  }
-
-  // --- Core toggle action logic ---
-  void _completeHabit(String habit) {
-    setState(() {
-      String color = selectedHabitsMap.remove(habit)!;
-      completedHabitsMap[habit] = color;
-      _saveHabits();
-    });
-  }
-
-  void _undoHabit(String habit) {
-    setState(() {
-      String color = completedHabitsMap.remove(habit)!;
-      selectedHabitsMap[habit] = color;
-      _saveHabits();
-    });
   }
 
   @override
@@ -81,129 +50,136 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-      drawer: NavigationDrawer(
-        selectedHabitsMap: selectedHabitsMap,
-        onHabitsUpdated: (updatedHabits) {
-          setState(() {
-            selectedHabitsMap = updatedHabits;
-          });
+      drawer: NavigationDrawer(service: _service, username: widget.username),
+      body: StreamBuilder<List<Habit>>(
+        stream: _service.habitsStream(),
+        builder: (context, habitsSnap) {
+          if (habitsSnap.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final habits = habitsSnap.data ?? [];
+
+          return StreamBuilder<Map<String, bool>>(
+            stream: _service.dailyLogStream(today),
+            builder: (context, logSnap) {
+              final completion = logSnap.data ?? {};
+              final selected = habits
+                  .where((h) => completion[h.id] != true)
+                  .toList();
+              final completed = habits
+                  .where((h) => completion[h.id] == true)
+                  .toList();
+
+              return ListView(
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Today is $formattedDate',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.textMedium,
+                              ),
+                            ),
+                            Text(
+                              'Hey, ${widget.username}!',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Text('👋', style: TextStyle(fontSize: 36)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSectionHeader("TODAY'S HABITS"),
+                  if (selected.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            'No habits yet',
+                            style: TextStyle(
+                              fontSize: 22,
+                              color: AppColors.textMedium,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Add your habits to start your streak',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textMedium,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ...selected.map(
+                      (habit) => _buildHabitCard(
+                        habit.name,
+                        _getColorFromHex(habit.colorHex),
+                        isCompleted: false,
+                        onTapCircle: () =>
+                            _service.setHabitCompletion(today, habit.id, true),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  _buildSectionHeader("COMPLETED"),
+                  if (completed.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.0),
+                      child: Text(
+                        'Tap on an activity circle to mark as done.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textMedium,
+                        ),
+                      ),
+                    )
+                  else
+                    ...completed.map(
+                      (habit) => _buildHabitCard(
+                        habit.name,
+                        _getColorFromHex(habit.colorHex),
+                        isCompleted: true,
+                        onTapCircle: () =>
+                            _service.setHabitCompletion(today, habit.id, false),
+                      ),
+                    ),
+                ],
+              );
+            },
+          );
         },
       ),
-      // Switch from Multiple Expanded lists to a Single unified ListView
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // Greeting Card
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: BoxDecoration(
-              color: AppColors.cardBg,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Today is $formattedDate',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textMedium,
-                      ),
-                    ),
-                    Text(
-                      'Hey, ${widget.username}!',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textDark,
-                      ),
-                    ),
-                  ],
-                ),
-                const Text('👋', style: TextStyle(fontSize: 36)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // --- TODAY'S HABITS SECTION HEADER ---
-          _buildSectionHeader("TODAY'S HABITS"),
-
-          if (selectedHabitsMap.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24.0),
-              child: Column(
-                children: [
-                  Text(
-                    'No habits yet',
-                    style: TextStyle(
-                      fontSize: 22,
-                      color: AppColors.textMedium,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Add your habits to start your streak',
-                    style: TextStyle(fontSize: 14, color: AppColors.textMedium),
-                  ),
-                ],
-              ),
-            )
-          else
-            ...selectedHabitsMap.keys.map((habit) {
-              Color habitColor = _getHabitColor(habit, selectedHabitsMap);
-              return _buildHabitCard(
-                habit,
-                habitColor,
-                isCompleted: false,
-                onTapCircle: () => _completeHabit(habit),
-              );
-            }),
-
-          const SizedBox(height: 16),
-
-          // --- COMPLETED SECTION HEADER ---
-          _buildSectionHeader("COMPLETED"),
-
-          if (completedHabitsMap.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Text(
-                'Tap on an activity circle to mark as done.',
-                style: TextStyle(fontSize: 14, color: AppColors.textMedium),
-              ),
-            )
-          else
-            ...completedHabitsMap.keys.map((habit) {
-              Color habitColor = _getHabitColor(habit, completedHabitsMap);
-              return _buildHabitCard(
-                habit,
-                habitColor,
-                isCompleted: true,
-                onTapCircle: () => _undoHabit(habit),
-              );
-            }),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final updatedHabits = await Navigator.push(
+        onPressed: () {
+          Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  AddHabitScreen(initialHabits: selectedHabitsMap),
+              builder: (context) => AddHabitScreen(service: _service),
             ),
           );
-          if (updatedHabits != null) {
-            setState(() {
-              selectedHabitsMap = updatedHabits;
-            });
-          }
         },
         backgroundColor: AppColors.primary,
         tooltip: 'Add Habits',
@@ -228,6 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
   Widget _buildHabitCard(
     String title,
     Color leadingDotColor, {
@@ -239,10 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.symmetric(vertical: 4.0),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(
-          color: AppColors.textLight, // Change your border color here
-          width: 1.0, // Change border thickness
-        ),
+        side: const BorderSide(color: AppColors.textLight, width: 1.0),
       ),
       color: Colors.grey[50],
       child: Container(
@@ -267,9 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 30,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isCompleted
-                    ? AppColors.primary
-                    : Colors.transparent,
+                color: isCompleted ? AppColors.primary : Colors.transparent,
                 border: Border.all(
                   color: isCompleted
                       ? const Color.fromARGB(255, 90, 83, 164)
@@ -289,13 +261,13 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class NavigationDrawer extends StatelessWidget {
-  final Map<String, String> selectedHabitsMap;
-  final Function(Map<String, String>) onHabitsUpdated;
+  final FirestoreService service;
+  final String username;
 
-  NavigationDrawer({
+  const NavigationDrawer({
     Key? key,
-    required this.selectedHabitsMap,
-    required this.onHabitsUpdated,
+    required this.service,
+    required this.username,
   }) : super(key: key);
 
   Future<void> _signOut(BuildContext context) async {
@@ -326,21 +298,25 @@ class NavigationDrawer extends StatelessWidget {
     child: Wrap(
       runSpacing: 16,
       children: [
+        Text(
+          '@${username}',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textDark,
+          ),
+        ),
+        const Divider(),
         ListTile(
           leading: const Icon(Icons.checklist),
           title: const Text('Habits'),
-          onTap: () async {
-            final updatedHabits = await Navigator.push(
+          onTap: () {
+            Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    AddHabitScreen(initialHabits: selectedHabitsMap),
+                builder: (context) => AddHabitScreen(service: service),
               ),
             );
-            if (updatedHabits != null) {
-              onHabitsUpdated(updatedHabits);
-            }
-            if (Navigator.canPop(context)) Navigator.pop(context);
           },
         ),
         ListTile(
@@ -351,7 +327,14 @@ class NavigationDrawer extends StatelessWidget {
         ListTile(
           leading: const Icon(Icons.bar_chart_rounded),
           title: const Text('Reports'),
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ReportsScreen(service: service),
+              ),
+            );
+          },
         ),
         ListTile(
           leading: const Icon(Icons.notifications),

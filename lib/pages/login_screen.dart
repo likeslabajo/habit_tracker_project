@@ -4,6 +4,7 @@ import 'package:habit_tracker_project/auth.dart';
 import 'register_screen.dart';
 import 'home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -199,7 +200,14 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      String username = _emailController.text.trim().split('@')[0];
+
+      String uid = FirebaseAuth.instance.currentUser!.uid;
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      String username = userDoc['username'] ?? 'User';
+
       Navigator.of(
         context,
       ).push(MaterialPageRoute(builder: (_) => HomeScreen(username: username)));
