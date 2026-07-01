@@ -303,7 +303,7 @@ class NavigationDrawer extends StatelessWidget {
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: AppColors.textDark,
+            color: AppColors.primary,
           ),
         ),
         const Divider(),

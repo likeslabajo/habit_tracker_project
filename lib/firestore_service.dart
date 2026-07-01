@@ -17,11 +17,6 @@ class Habit {
   }
 }
 
-/// Wraps all Firestore reads/writes for a single user's habits + daily logs.
-///
-/// Data shape:
-///   users/{uid}/habits/{habitId}            -> { name, colorHex, createdAt }
-///   users/{uid}/dailyLogs/{yyyy-MM-dd}       -> { habitId1: true, habitId2: false, ... }
 class FirestoreService {
   final String uid;
   FirestoreService(this.uid);
@@ -38,15 +33,11 @@ class FirestoreService {
 
   DocumentReference _dailyLogDoc(String date) => _dailyLogsRef.doc(date);
 
-  /// Live list of the user's habits (name + color), ordered by creation time.
   Stream<List<Habit>> habitsStream() {
     return _habitsRef.orderBy('createdAt').snapshots().map(
           (snap) => snap.docs.map((d) => Habit.fromDoc(d)).toList(),
         );
   }
-
-  /// Live completion map for a single day: { habitId: true/false }.
-  /// Missing entries are treated as "not completed".
   Stream<Map<String, bool>> dailyLogStream(String date) {
     return _dailyLogDoc(date).snapshots().map((doc) {
       if (!doc.exists) return <String, bool>{};
@@ -65,8 +56,6 @@ class FirestoreService {
 
   Future<void> deleteHabit(String habitId) async {
     await _habitsRef.doc(habitId).delete();
-    // Note: past dailyLogs entries for this habitId are left in place on
-    // purpose, so historical stats/streaks aren't silently rewritten.
   }
 
   Future<void> setHabitCompletion(
@@ -80,8 +69,6 @@ class FirestoreService {
     );
   }
 
-  /// One-time fetch of daily logs between two 'yyyy-MM-dd' dates (inclusive),
-  /// used by the Reports/history screen.
   Future<Map<String, Map<String, bool>>> logsInRange(
     String startDate,
     String endDate,
