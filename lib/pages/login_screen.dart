@@ -206,7 +206,12 @@ class _LoginScreenState extends State<LoginScreen> {
           .collection('users')
           .doc(uid)
           .get();
-      String username = userDoc['username'] ?? 'User';
+
+      String username = 'User';
+      if (userDoc.exists && userDoc.data() != null) {
+        username =
+            (userDoc.data() as Map<String, dynamic>)['username'] ?? 'User';
+      }
 
       Navigator.of(
         context,

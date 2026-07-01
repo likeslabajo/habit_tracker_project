@@ -7,6 +7,7 @@ import 'package:habit_tracker_project/firestore_service.dart';
 import 'login_screen.dart';
 import 'add_habit_screen.dart';
 import 'reports_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -41,9 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final formattedDate = DateFormat('MMMM dd, yyyy').format(DateTime.now());
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
         centerTitle: true,
         title: const Text(
           'Streakly',
@@ -322,7 +321,14 @@ class NavigationDrawer extends StatelessWidget {
         ListTile(
           leading: const Icon(Icons.person),
           title: const Text('Profile'),
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProfileScreen(username: username),
+              ),
+            );
+          },
         ),
         ListTile(
           leading: const Icon(Icons.bar_chart_rounded),

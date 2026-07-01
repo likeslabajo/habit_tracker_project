@@ -66,9 +66,7 @@ class ReportsScreen extends StatelessWidget {
     final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
