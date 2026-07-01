@@ -199,9 +199,10 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      String username = _emailController.text.trim().split('@')[0];
       Navigator.of(
         context,
-      ).push(MaterialPageRoute(builder: (_) => const HomeScreen()));
+      ).push(MaterialPageRoute(builder: (_) => HomeScreen(username: username)));
     } on FirebaseAuthException catch (e) {
       String errorMessage;
       if (e.code == 'user-not-found' || e.code == 'wrong-password') {
